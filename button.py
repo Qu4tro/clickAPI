@@ -38,18 +38,26 @@ def load_db(dbpath):
 class Button():
 
     @staticmethod
-    def new(db, buttonName, initialValue=0):
+    def new(db, name, initialValue=0):
         c = db.cursor()
         c.execute('''
             insert into Button (name, initialValue)
             values(?, ?)
-        ''', 
-        (buttonName, initialValue))
-        db.commit()
+        ''', (name, initialValue))
 
         b = Button(db, c.lastrowid)
         b.reset()
         return b
+
+
+    @staticmethod
+    def list(db): 
+        c = db.cursor()
+        c.execute('''
+            select name, rowid from Button
+        ''')
+
+        return c.fetchall()
 
     @staticmethod
     def search(db, searchTerm): #TODO
@@ -72,24 +80,37 @@ class Button():
     @property
     def name(self):
         if not(self.retrieved):
-            self.__getButton()
+            self.get()
         return self._name
 
     @property
     def initialValue(self):
         if not(self.retrieved):
-            self.__getButton()
+            self.get()
         return self._initialValue
 
     @property
     def creationTime(self):
         if not(self.retrieved):
-            self.__getButton()
+            self.get()
         return self._creationTime
 
     @property
+    def lastReset(self):
+        self.c.execute('''
+            select ButtonAlias.creationTime from ButtonAlias
+                inner join Button
+                    on ButtonAlias.realButton = Button.rowid
+            where ButtonAlias.rowid = Button.currentButtonAlias AND
+                  Button.rowid = ?
+                       ''', (self.id, ))
+
+        return self.c.fetchone()[0]
+       
+
+    @property
     def alias(self):
-        self.__getButton()
+        self.get()
         return self._currentButtonAlias
         
     @property
@@ -141,7 +162,7 @@ class Button():
 
         self.db.commit()
 
-    def __getButton(self):
+    def get(self):
         self.c.execute('''
             select name,
                    initialValue,
